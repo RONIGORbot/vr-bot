@@ -80,13 +80,12 @@ def add_order(order: dict):
     clients = load_clients()
     uid = str(order["user_id"])
     if uid not in clients:
-        clients[uid] = {
-            "name": order["name"],
-            "phone": order["phone"],
-            "username": order.get("username", "нет"),
-            "orders": [],
-            "total_spent": 0,
-        }
+        clients[uid] = {}
+    clients[uid].setdefault("orders", [])
+    clients[uid].setdefault("total_spent", 0)
+    clients[uid]["name"] = order["name"]
+    clients[uid]["phone"] = order["phone"]
+    clients[uid]["username"] = order.get("username", "нет")
     clients[uid]["orders"].append(order["id"])
     clients[uid]["total_spent"] = clients[uid].get("total_spent", 0) + order.get("total", 0)
     save_clients(clients)
