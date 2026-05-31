@@ -14,7 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 # ================== НАСТРОЙКИ ==================
 TOKEN = os.getenv("BOT_TOKEN", "8873059239:AAF8FMbc7AlxI15PHXUHv_dX9inxKBWAvfY")
-ADMIN_IDS = [8725919396]  # Добавь второй ID сюда
+ADMIN_IDS = [8725919396, 294017914]
 
 WORK_START = time(9, 0)
 WORK_END = time(22, 0)
@@ -27,22 +27,23 @@ storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
 # ================== ПРОМОКОДЫ ==================
-PROMO_CODES = {
-    "VR10": 10,
-    "VR20": 20,
-    "ALMATYVR": 15,
-}
+PROMO_CODES = {}
 
 # ================== ЦЕНЫ ==================
-PRICES = {
-    "Meta Quest 3": 1500,
-    "Meta Quest 3S": 1200,
-    "Pico 4 Ultra": 1800,
-    "PlayStation VR2 + PS5": 2500,
+PRICE_STANDARD = 8500    # тг/час за 1 шлем (до 4 шт.)
+PRICE_BULK = 7500        # тг/час при 5+ шлемах
+MIN_HOURS = 3            # минимальный заказ
+OPERATOR_PRICE = 6500    # тг/час на оператора
+TRANSPORT_PRICE = 25000  # тг/выезд (фикс)
+TV_PRICE = 10500         # тг/час за ТВ
+
+# Медиа-пакеты (цена за мероприятие, от указанной суммы)
+MEDIA_PACKAGES = {
+    "🎬 Кинокамера Sony FX30 Cinema Line — беззеркальная, 8 бит, Log-S форматы (съёмка + монтаж Reels)": 20000,
+    "📱 Мобилография (iPhone Pro Max)": 20000,
+    "🎥 Полный пакет (кинокамера + мобилография)": 50000,
+    "❌ Без медиа-сопровождения": 0,
 }
-OPERATOR_PRICE = 6500   # тг/час
-TRANSPORT_PRICE = 25000  # тг/выезд
-TV_PRICE = 55000         # тг/час
 
 # ================== CRM ==================
 CRM_FILE = "crm.json"
@@ -76,7 +77,6 @@ def add_order(order: dict):
     orders.append(order)
     save_crm(orders)
 
-    # Обновляем базу клиентов
     clients = load_clients()
     uid = str(order["user_id"])
     if uid not in clients:
@@ -119,24 +119,90 @@ def set_user_lang(user_id: int, lang: str):
 # ================== ТЕКСТЫ ==================
 T = {
     "welcome": {
-        "ru": "👋 <b>Добро пожаловать в VR PROGRESS!</b>\n\n🎮 Аренда VR-шлемов в Алматы\nMeta Quest 3 • Quest 3S • Pico 4 Ultra • PS VR2\n\nВыберите действие ниже 👇",
-        "kz": "👋 <b>VR PROGRESS-ке қош келдіңіз!</b>\n\n🎮 Алматыдағы VR дулыға жалдау\nMeta Quest 3 • Quest 3S • Pico 4 Ultra • PS VR2\n\nТөменде әрекетті таңдаңыз 👇"
+        "ru": (
+            "👋 <b>Добро пожаловать в VR PROGRESS!</b>\n\n"
+            "🏆 <i>Компания с 9-летним опытом в VR-индустрии</i>\n\n"
+            "Мы организуем VR-мероприятия под ключ: от оборудования Meta Quest 3 "
+            "до профессионального видеосопровождения (кинокамера / мобилография). "
+            "Выполним любую задачу.\n\n"
+            "🎮 Meta Quest 3\n\n"
+            "Выберите действие ниже 👇"
+        ),
+        "kz": (
+            "👋 <b>VR PROGRESS-ке қош келдіңіз!</b>\n\n"
+            "🏆 <i>VR индустриясындағы 9 жылдық тәжірибесі бар компания</i>\n\n"
+            "Біз Meta Quest 3 жабдығынан бастап кәсіби бейне сүйемелдеуге дейін "
+            "VR іс-шараларын кілт тапсыру арқылы ұйымдастырамыз. "
+            "Кез келген тапсырманы орындаймыз.\n\n"
+            "🎮 Meta Quest 3\n\n"
+            "Төменде әрекетті таңдаңыз 👇"
+        ),
     },
     "off_hours": {
         "ru": "⏰ Сейчас мы не работаем.\n\nРабочие часы: 9:00–22:00\nОставьте заявку — ответим утром! 🌅",
-        "kz": "⏰ Қазір біз жұмыс істемейміз.\n\nЖұмыс уақыты: 9:00–22:00\nӨтінім қалдырыңыз — таңертең жауап береміз! 🌅"
+        "kz": "⏰ Қазір біз жұмыс істемейміз.\n\nЖұмыс уақыты: 9:00–22:00\nӨтінім қалдырыңыз — таңертең жауап береміз! 🌅",
     },
     "catalog": {
-        "ru": "<b>📦 Доступное оборудование:</b>\n\n🕹 <b>Meta Quest 3</b> — 128GB / 512GB\n   Флагман для автономной VR\n\n🕹 <b>Meta Quest 3S</b>\n   Компактный и доступный\n\n🕹 <b>Pico 4 Ultra</b>\n   Премиум с отслеживанием взгляда\n\n🕹 <b>PlayStation VR2 + PS5</b>\n   Эксклюзивные игры PlayStation",
-        "kz": "<b>📦 Қол жетімді жабдықтар:</b>\n\n🕹 <b>Meta Quest 3</b> — 128GB / 512GB\n   Автономды VR флагманы\n\n🕹 <b>Meta Quest 3S</b>\n   Компактты және қолжетімді\n\n🕹 <b>Pico 4 Ultra</b>\n   Көз бақылауы бар премиум\n\n🕹 <b>PlayStation VR2 + PS5</b>\n   PlayStation эксклюзивті ойындары"
+        "ru": (
+            "<b>📦 Доступное оборудование:</b>\n\n"
+            "🕹 <b>Meta Quest 3</b> — 128GB / 512GB\n"
+            "   Флагман для автономной VR"
+        ),
+        "kz": (
+            "<b>📦 Қол жетімді жабдықтар:</b>\n\n"
+            "🕹 <b>Meta Quest 3</b> — 128GB / 512GB\n"
+            "   Автономды VR флагманы"
+        ),
     },
     "prices": {
-        "ru": "<b>💰 Цены на аренду (за час):</b>\n\n🎮 Meta Quest 3 — 1 500 тг/час\n🎮 Meta Quest 3S — 1 200 тг/час\n🎮 Pico 4 Ultra — 1 800 тг/час\n🎮 PS VR2 + PS5 — 2 500 тг/час\n\n👨‍💼 Оператор — 6 500 тг/час\n🚗 Транспорт — 25 000 тг/выезд\n📺 ТВ со стойками — 55 000 тг/час\n\n💳 Оплата: наличными или переводом",
-        "kz": "<b>💰 Жалдау бағалары (сағатына):</b>\n\n🎮 Meta Quest 3 — 1 500 тг/сағ\n🎮 Meta Quest 3S — 1 200 тг/сағ\n🎮 Pico 4 Ultra — 1 800 тг/сағ\n🎮 PS VR2 + PS5 — 2 500 тг/сағ\n\n👨‍💼 Оператор — 6 500 тг/сағ\n🚗 Көлік — 25 000 тг/шығу\n📺 Стойкалы ТВ — 55 000 тг/сағ\n\n💳 Төлем: қолма-қол немесе аударым"
+        "ru": (
+            "<b>💰 Базовые тарифы (за 1 час):</b>\n\n"
+            "🎮 VR-шлем Meta Quest 3 — 8 500 тг/час\n"
+            "   🔥 От 5 шлемов — 7 500 тг/час\n"
+            "   ⏱ Минимальный заказ — от 3 часов\n\n"
+            "👨‍💼 Оператор/инструктор — 6 500 тг/час\n"
+            "📺 Телевизор (Full HD/4K) — 10 500 тг/час\n"
+            "🚗 Логистика (доставка + монтаж) — 25 000 тг/выезд\n\n"
+            "<b>🎬 Медиа-сопровождение (за мероприятие):</b>\n"
+            "   🎬 Кинокамера Sony FX30 Cinema Line — беззеркальная, 8 бит, Log-S (съёмка + монтаж Reels) — от 20 000 тг\n"
+            "   📱 Мобилография (iPhone Pro Max) — от 20 000 тг\n"
+            "   🎥 Полный пакет (оба варианта) — от 35 000 тг\n\n"
+            "💳 Оплата: наличными или переводом"
+        ),
+        "kz": (
+            "<b>💰 Негізгі тарифтер (сағатына):</b>\n\n"
+            "🎮 VR дулығасы Meta Quest 3 — 8 500 тг/сағ\n"
+            "   🔥 5 дулығадан — 7 500 тг/сағ\n"
+            "   ⏱ Ең аз тапсырыс — 3 сағаттан\n\n"
+            "👨‍💼 Оператор/нұсқаушы — 6 500 тг/сағ\n"
+            "📺 Теледидар (Full HD/4K) — 10 500 тг/сағ\n"
+            "🚗 Логистика (жеткізу + монтаж) — 25 000 тг/шығу\n\n"
+            "<b>🎬 Медиа-сүйемелдеу (іс-шараға):</b>\n"
+            "   🎬 Кинокамера Sony FX30 Cinema Line — беззеркальная, 8 бит, Log-S (түсіру + монтаж) — 20 000 тг-дан\n"
+            "   📱 Мобилография (iPhone Pro Max) — 20 000 тг-дан\n"
+            "   🎥 Толық пакет (екі нұсқа) — 35 000 тг-дан\n\n"
+            "💳 Төлем: қолма-қол немесе аударым"
+        ),
     },
     "how_rent": {
-        "ru": "<b>📖 Как арендовать:</b>\n\n1️⃣ Выберите шлем\n2️⃣ Нажмите «Оформить аренду»\n3️⃣ Заполните форму\n4️⃣ Менеджер свяжется с вами\n\n📍 Работаем по всей Алматы\n🔒 Залог: 10 000 тг\n⏰ Ежедневно: 9:00–22:00",
-        "kz": "<b>📖 Қалай жалдауға болады:</b>\n\n1️⃣ Дулығаны таңдаңыз\n2️⃣ «Жалдауды рәсімдеу» батырмасын басыңыз\n3️⃣ Нысанды толтырыңыз\n4️⃣ Менеджер сізбен байланысады\n\n📍 Алматы бойынша жұмыс істейміз\n🔒 Кепілдік: 10 000 тг\n⏰ Күн сайын: 9:00–22:00"
+        "ru": (
+            "<b>📖 Как арендовать:</b>\n\n"
+            "1️⃣ Выберите шлем\n"
+            "2️⃣ Нажмите «Оформить аренду»\n"
+            "3️⃣ Заполните форму\n"
+            "4️⃣ Менеджер свяжется с вами\n\n"
+            "📍 Работаем по всей Алматы\n"
+            "⏰ Ежедневно: 9:00–22:00"
+        ),
+        "kz": (
+            "<b>📖 Қалай жалдауға болады:</b>\n\n"
+            "1️⃣ Дулығаны таңдаңыз\n"
+            "2️⃣ «Жалдауды рәсімдеу» батырмасын басыңыз\n"
+            "3️⃣ Нысанды толтырыңыз\n"
+            "4️⃣ Менеджер сізбен байланысады\n\n"
+            "📍 Алматы бойынша жұмыс істейміз\n"
+            "⏰ Күн сайын: 9:00–22:00"
+        ),
     },
 }
 
@@ -149,9 +215,9 @@ class RentForm(StatesGroup):
     quantity = State()
     hours = State()
     tv = State()
-    promo = State()
-    agree = State()
-    deposit_photo = State()
+    tv_quantity = State()
+    operators = State()
+    media = State()
     name = State()
     phone = State()
     address = State()
@@ -210,9 +276,6 @@ def cancel_menu():
 def equipment_menu():
     keyboard = [
         [types.KeyboardButton(text="Meta Quest 3")],
-        [types.KeyboardButton(text="Meta Quest 3S")],
-        [types.KeyboardButton(text="Pico 4 Ultra")],
-        [types.KeyboardButton(text="PlayStation VR2 + PS5")],
         [types.KeyboardButton(text="❌ Отмена")]
     ]
     return types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -245,6 +308,23 @@ def status_menu(order_id: int):
 def skip_menu():
     keyboard = [
         [types.KeyboardButton(text="⏭ Пропустить")],
+        [types.KeyboardButton(text="❌ Отмена")]
+    ]
+    return types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def media_menu():
+    keyboard = [
+        [types.KeyboardButton(text="🎬 Кинокамера Sony FX30 Cinema Line (съёмка + монтаж Reels)")],
+        [types.KeyboardButton(text="📱 Мобилография (iPhone Pro Max)")],
+        [types.KeyboardButton(text="🎥 Полный пакет (кинокамера + мобилография)")],
+        [types.KeyboardButton(text="❌ Без медиа-сопровождения")],
+        [types.KeyboardButton(text="❌ Отмена")]
+    ]
+    return types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def confirm_order_menu():
+    keyboard = [
+        [types.KeyboardButton(text="✅ Оформить заявку")],
         [types.KeyboardButton(text="❌ Отмена")]
     ]
     return types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -378,7 +458,7 @@ async def repeat_callback(callback: types.CallbackQuery):
         return
     new_order = {
         "equipment": last["equipment"],
-        "hours": last.get("hours", 1),
+        "hours": last.get("hours", 3),
         "tv": last.get("tv", False),
         "name": last["name"],
         "phone": last["phone"],
@@ -397,22 +477,32 @@ async def repeat_callback(callback: types.CallbackQuery):
     await callback.answer()
     await callback.message.edit_text(f"✅ Повторная заявка #{new_id} отправлена! Менеджер свяжется с вами.")
 
-# ================== ОФОРМЛЕНИЕ ==================
+# ================== ОФОРМЛЕНИЕ АРЕНДЫ ==================
 @dp.message(F.text.in_(["🚀 Оформить аренду", "🚀 Жалдауды рәсімдеу"]))
 async def rent_start(message: types.Message, state: FSMContext):
     lang = get_user_lang(message.from_user.id)
     if not is_working_hours():
         await message.answer(T["off_hours"][lang], parse_mode="HTML")
         return
-    msg = "🎮 <b>Шаг 1/9</b> — Выберите оборудование:" if lang == "ru" else "🎮 <b>Қадам 1/9</b> — Жабдықты таңдаңыз:"
+    msg = "🎮 <b>Шаг 1/8</b> — Выберите оборудование:" if lang == "ru" else "🎮 <b>Қадам 1/8</b> — Жабдықты таңдаңыз:"
     await message.answer(msg, parse_mode="HTML", reply_markup=equipment_menu())
     await state.set_state(RentForm.equipment)
 
 @dp.message(RentForm.equipment)
 async def rent_equipment(message: types.Message, state: FSMContext):
     lang = get_user_lang(message.from_user.id)
+    valid = ["Meta Quest 3"]
+    if message.text not in valid:
+        await message.answer("⚠️ Выберите оборудование из списка" if lang == "ru" else "⚠️ Тізімнен жабдықты таңдаңыз")
+        return
     await state.update_data(equipment=message.text)
-    msg = "🔢 <b>Шаг 2/9</b> — Сколько шлемов нужно?\n\n<i>Введите число (например: 2)</i>" if lang == "ru" else "🔢 <b>Қадам 2/9</b> — Қанша дулыға керек?\n\n<i>Санды енгізіңіз (мысалы: 2)</i>"
+    msg = (
+        f"🔢 <b>Шаг 2/8</b> — Сколько шлемов нужно?\n\n"
+        f"<i>Введите число (мин. 1)\n🔥 От 5 шт. — оптовая цена 7 500 тг/час</i>"
+    ) if lang == "ru" else (
+        f"🔢 <b>Қадам 2/8</b> — Қанша дулыға керек?\n\n"
+        f"<i>Санды енгізіңіз (мин. 1)\n🔥 5 дана-дан — жоғарыда баға 7 500 тг/сағ</i>"
+    )
     await message.answer(msg, parse_mode="HTML", reply_markup=cancel_menu())
     await state.set_state(RentForm.quantity)
 
@@ -422,8 +512,18 @@ async def rent_quantity(message: types.Message, state: FSMContext):
     if not message.text.isdigit() or int(message.text) <= 0:
         await message.answer("⚠️ Введите число больше 0" if lang == "ru" else "⚠️ 0-ден үлкен санды енгізіңіз")
         return
-    await state.update_data(quantity=int(message.text))
-    msg = "⏰ <b>Шаг 3/9</b> — На сколько часов?\n\n<i>Введите число (например: 3)</i>" if lang == "ru" else "⏰ <b>Қадам 3/9</b> — Қанша сағатқа?\n\n<i>Санды енгізіңіз (мысалы: 3)</i>"
+    qty = int(message.text)
+    await state.update_data(quantity=qty)
+    bulk_note = ""
+    if qty >= 5:
+        bulk_note = "\n\n🔥 <b>Применена оптовая цена 7 500 тг/час!</b>" if lang == "ru" else "\n\n🔥 <b>Жоғарыда баға 7 500 тг/сағ қолданылды!</b>"
+    msg = (
+        f"⏰ <b>Шаг 3/8</b> — На сколько часов?{bulk_note}\n\n"
+        f"<i>Минимальный заказ — {MIN_HOURS} часа</i>"
+    ) if lang == "ru" else (
+        f"⏰ <b>Қадам 3/8</b> — Қанша сағатқа?{bulk_note}\n\n"
+        f"<i>Ең аз тапсырыс — {MIN_HOURS} сағат</i>"
+    )
     await message.answer(msg, parse_mode="HTML", reply_markup=cancel_menu())
     await state.set_state(RentForm.hours)
 
@@ -433,66 +533,144 @@ async def rent_hours(message: types.Message, state: FSMContext):
     if not message.text.isdigit() or int(message.text) <= 0:
         await message.answer("⚠️ Введите количество часов числом" if lang == "ru" else "⚠️ Сағат санын енгізіңіз")
         return
-    await state.update_data(hours=int(message.text))
-    msg = "📺 <b>Шаг 4/9</b> — Нужен ТВ со стойками?\n\n💰 55 000 тг/час" if lang == "ru" else "📺 <b>Қадам 4/9</b> — Стойкалы ТВ керек пе?\n\n💰 55 000 тг/сағ"
+    hours = int(message.text)
+    if hours < MIN_HOURS:
+        warn = f"⚠️ Минимальный заказ — {MIN_HOURS} часа. Введите {MIN_HOURS} или больше." if lang == "ru" else f"⚠️ Ең аз тапсырыс — {MIN_HOURS} сағат. {MIN_HOURS} немесе көп санды енгізіңіз."
+        await message.answer(warn)
+        return
+    await state.update_data(hours=hours)
+    msg = (
+        f"📺 <b>Шаг 4/8</b> — Нужен телевизор (Full HD/4K трансляция)?\n\n"
+        f"💰 {TV_PRICE:,} тг/час"
+    ) if lang == "ru" else (
+        f"📺 <b>Қадам 4/8</b> — Теледидар керек пе (Full HD/4K трансляция)?\n\n"
+        f"💰 {TV_PRICE:,} тг/сағ"
+    )
     await message.answer(msg, parse_mode="HTML", reply_markup=yes_no_menu())
     await state.set_state(RentForm.tv)
 
 @dp.message(RentForm.tv)
 async def rent_tv(message: types.Message, state: FSMContext):
     lang = get_user_lang(message.from_user.id)
-    await state.update_data(tv=message.text == "✅ Да")
-    msg = "🎁 <b>Шаг 5/9</b> — Есть промокод?\n\nЕсли нет — нажмите «Пропустить»" if lang == "ru" else "🎁 <b>Қадам 5/9</b> — Промокод бар ма?\n\nЖоқ болса — «Өткізу» батырмасын басыңыз"
-    await message.answer(msg, parse_mode="HTML", reply_markup=skip_menu())
-    await state.set_state(RentForm.promo)
-
-@dp.message(RentForm.promo)
-async def rent_promo(message: types.Message, state: FSMContext):
-    lang = get_user_lang(message.from_user.id)
-    if message.text == "⏭ Пропустить":
-        await state.update_data(promo=None, discount=0)
+    need_tv = message.text == "✅ Да"
+    await state.update_data(tv=need_tv)
+    if need_tv:
+        msg = "📺 <b>Шаг 5/8</b> — Сколько телевизоров нужно?\n\n<i>Введите число (например: 1)</i>" if lang == "ru" else "📺 <b>Қадам 5/8</b> — Қанша теледидар керек?\n\n<i>Санды енгізіңіз (мысалы: 1)</i>"
+        await message.answer(msg, parse_mode="HTML", reply_markup=cancel_menu())
+        await state.set_state(RentForm.tv_quantity)
     else:
-        code = message.text.strip().upper()
-        if code in PROMO_CODES:
-            discount = PROMO_CODES[code]
-            await state.update_data(promo=code, discount=discount)
-            msg = f"✅ Промокод применён! Скидка {discount}%" if lang == "ru" else f"✅ Промокод қолданылды! Жеңілдік {discount}%"
-            await message.answer(msg)
-        else:
-            await state.update_data(promo=None, discount=0)
-            msg = "❌ Промокод не найден. Продолжаем без скидки." if lang == "ru" else "❌ Промокод табылмады. Жеңілдіксіз жалғастырамыз."
-            await message.answer(msg)
+        await state.update_data(tv_quantity=0)
+        msg = (
+            f"👨‍💼 <b>Шаг 5/8</b> — Сколько операторов/инструкторов?\n\n"
+            f"💰 {OPERATOR_PRICE:,} тг/час\n<i>Введите 0, если не нужны</i>"
+        ) if lang == "ru" else (
+            f"👨‍💼 <b>Қадам 5/8</b> — Қанша оператор/нұсқаушы керек?\n\n"
+            f"💰 {OPERATOR_PRICE:,} тг/сағ\n<i>Қажет болмаса 0 енгізіңіз</i>"
+        )
+        await message.answer(msg, parse_mode="HTML", reply_markup=cancel_menu())
+        await state.set_state(RentForm.operators)
 
-    msg = "✍️ <b>Шаг 6/9</b> — Ознакомьтесь с условиями:\n\n• Залог: 10 000 тг\n• Бережное обращение с оборудованием\n• Оплата до выдачи\n• Возврат в оговоренное время" if lang == "ru" else "✍️ <b>Қадам 6/9</b> — Шарттармен танысыңыз:\n\n• Кепілдік: 10 000 тг\n• Жабдықты ұқыпты пайдалану\n• Беруден бұрын төлем\n• Келісілген уақытта қайтару"
-    await message.answer(msg, parse_mode="HTML", reply_markup=agree_menu())
-    await state.set_state(RentForm.agree)
-
-@dp.message(RentForm.agree)
-async def rent_agree(message: types.Message, state: FSMContext):
+@dp.message(RentForm.tv_quantity)
+async def rent_tv_quantity(message: types.Message, state: FSMContext):
     lang = get_user_lang(message.from_user.id)
-    if message.text != "✅ Принимаю условия":
-        await message.answer("❌ Необходимо принять условия для продолжения." if lang == "ru" else "❌ Жалғастыру үшін шарттарды қабылдау керек.")
+    if not message.text.isdigit() or int(message.text) <= 0:
+        await message.answer("⚠️ Введите число больше 0" if lang == "ru" else "⚠️ 0-ден үлкен санды енгізіңіз")
         return
-    msg = "📸 <b>Шаг 7/9</b> — Отправьте фото документа (удостоверение/паспорт)\n\nЭто необходимо для залога.\nЕсли хотите пропустить — нажмите «Пропустить»" if lang == "ru" else "📸 <b>Қадам 7/9</b> — Құжат фотосын жіберіңіз (куәлік/паспорт)\n\nБұл кепілдік үшін қажет.\nӨткізгіңіз келсе — «Өткізу» батырмасын басыңыз"
-    await message.answer(msg, parse_mode="HTML", reply_markup=skip_menu())
-    await state.set_state(RentForm.deposit_photo)
-
-@dp.message(RentForm.deposit_photo)
-async def rent_deposit(message: types.Message, state: FSMContext):
-    lang = get_user_lang(message.from_user.id)
-    if message.photo:
-        await state.update_data(has_deposit_photo=True)
-    else:
-        await state.update_data(has_deposit_photo=False)
-    msg = "👤 <b>Шаг 8/9</b> — Как вас зовут?" if lang == "ru" else "👤 <b>Қадам 8/9</b> — Есіміңіз кім?"
+    await state.update_data(tv_quantity=int(message.text))
+    msg = (
+        f"👨‍💼 <b>Шаг 6/8</b> — Сколько операторов/инструкторов?\n\n"
+        f"💰 {OPERATOR_PRICE:,} тг/час\n<i>Введите 0, если не нужны</i>"
+    ) if lang == "ru" else (
+        f"👨‍💼 <b>Қадам 6/8</b> — Қанша оператор/нұсқаушы керек?\n\n"
+        f"💰 {OPERATOR_PRICE:,} тг/сағ\n<i>Қажет болмаса 0 енгізіңіз</i>"
+    )
     await message.answer(msg, parse_mode="HTML", reply_markup=cancel_menu())
+    await state.set_state(RentForm.operators)
+
+@dp.message(RentForm.operators)
+async def rent_operators(message: types.Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    if not message.text.isdigit() or int(message.text) < 0:
+        await message.answer("⚠️ Введите число (0 или больше)" if lang == "ru" else "⚠️ Санды енгізіңіз (0 немесе одан көп)")
+        return
+    await state.update_data(operators=int(message.text))
+    msg = (
+        "🎬 <b>Шаг 7/8</b> — Медиа-сопровождение?\n\n"
+        "Выберите пакет съёмки:"
+    ) if lang == "ru" else (
+        "🎬 <b>Қадам 7/8</b> — Медиа-сүйемелдеу?\n\n"
+        "Түсіру пакетін таңдаңыз:"
+    )
+    await message.answer(msg, parse_mode="HTML", reply_markup=media_menu())
+    await state.set_state(RentForm.media)
+
+@dp.message(RentForm.media)
+async def rent_media(message: types.Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    valid_media = list(MEDIA_PACKAGES.keys())
+    if message.text not in valid_media:
+        await message.answer("⚠️ Выберите вариант из списка" if lang == "ru" else "⚠️ Тізімнен нұсқаны таңдаңыз")
+        return
+    media_choice = message.text
+    media_cost = MEDIA_PACKAGES[media_choice]
+    await state.update_data(media=media_choice, media_cost=media_cost)
+
+    # Показываем детальный чек перед оформлением
+    data = await state.get_data()
+    equipment = data['equipment']
+    quantity = data.get('quantity', 1)
+    hours = data['hours']
+    tv = data.get('tv', False)
+    tv_qty = data.get('tv_quantity', 0)
+    operators = data.get('operators', 0)
+
+    price_per_hour = PRICE_BULK if quantity >= 5 else PRICE_STANDARD
+    equipment_total = price_per_hour * quantity * hours
+    tv_total = TV_PRICE * tv_qty * hours if tv else 0
+    operator_total = OPERATOR_PRICE * operators * hours
+    subtotal = equipment_total + tv_total + operator_total + media_cost + TRANSPORT_PRICE
+
+    bulk_line = f"\n   🔥 <i>Оптовая цена 7 500 тг/час (5+ шлемов)</i>" if quantity >= 5 else ""
+    tv_line = f"\n🔹 2. Дополнительное оборудование:\n   📺 Телевизоры — {tv_qty} шт. × {hours} ч. = <b>{tv_total:,} тг</b>" if tv else ""
+    operator_line = f"\n🔹 3. Обслуживание и персонал:\n   👨‍💼 Операторы/инструкторы — {operators} чел. × {hours} ч. = <b>{operator_total:,} тг</b>" if operators > 0 else ""
+    media_line = f"Выбранный пакет: {media_choice} = <b>от {media_cost:,} тг</b>" if media_cost > 0 else "Не выбрано — <b>0 тг</b>"
+
+    check_text = (
+        f"🧾 <b>ДЕТАЛЬНЫЙ РАСЧЁТ ВАШЕГО ЗАКАЗА:</b>\n\n"
+        f"🔹 1. Основное VR-оборудование:\n"
+        f"   🎮 {equipment} — {quantity} шт. × {hours} ч. = <b>{equipment_total:,} тг</b>{bulk_line}"
+        f"{tv_line}"
+        f"{operator_line}\n"
+        f"🔹 4. Медиа-сопровождение (бэкстейдж):\n"
+        f"   {media_line}\n\n"
+        f"🔹 5. Логистика и обеспечение:\n"
+        f"   🚗 Доставка, монтаж, настройка сети и выездной контроль — <b>{TRANSPORT_PRICE:,} тг</b>\n\n"
+        f"──────────────────────\n"
+        f"💰 <b>ИТОГО К ОПЛАТЕ: {subtotal:,} тг</b>\n\n"
+        f"<i>Всё оборудование предоставляется в чистом, продезинфицированном виде, "
+        f"полностью заряженным и готовым к бесперебойной работе.</i>\n"
+        f"──────────────────────\n\n"
+        f"👇 Если всё верно, нажмите <b>«Оформить заявку»</b> и укажите ваши контакты."
+    )
+    await state.update_data(subtotal=subtotal, price_per_hour=price_per_hour,
+                             equipment_total=equipment_total, tv_total=tv_total,
+                             operator_total=operator_total)
+    await message.answer(check_text, parse_mode="HTML", reply_markup=confirm_order_menu())
     await state.set_state(RentForm.name)
 
 @dp.message(RentForm.name)
 async def rent_name(message: types.Message, state: FSMContext):
     lang = get_user_lang(message.from_user.id)
+    if message.text == "✅ Оформить заявку":
+        msg = "👤 <b>Шаг 8/8</b> — Введите ваше имя:" if lang == "ru" else "👤 <b>Қадам 8/8</b> — Атыңызды енгізіңіз:"
+        await message.answer(msg, parse_mode="HTML", reply_markup=cancel_menu())
+        await state.update_data(confirmed=True)
+        return
+    data = await state.get_data()
+    if not data.get('confirmed'):
+        return
     await state.update_data(name=message.text)
-    msg = "📱 <b>Шаг 9/9</b> — Введите номер телефона:" if lang == "ru" else "📱 <b>Қадам 9/9</b> — Телефон нөміріңізді енгізіңіз:"
+    msg = "📱 Введите номер телефона:" if lang == "ru" else "📱 Телефон нөміріңізді енгізіңіз:"
     await message.answer(msg, parse_mode="HTML", reply_markup=cancel_menu())
     await state.set_state(RentForm.phone)
 
@@ -522,16 +700,15 @@ async def rent_finish(message: types.Message, state: FSMContext):
     quantity = data.get('quantity', 1)
     hours = data['hours']
     tv = data.get('tv', False)
-    discount = data.get('discount', 0)
-    promo = data.get('promo')
-
-    price_per_hour = PRICES.get(equipment, 0)
-    equipment_total = price_per_hour * quantity * hours
-    operator_total = OPERATOR_PRICE * quantity * hours
-    tv_total = TV_PRICE * hours if tv else 0
-    subtotal = equipment_total + operator_total + TRANSPORT_PRICE + tv_total
-    discount_amount = int(subtotal * discount / 100)
-    total = subtotal - discount_amount
+    tv_qty = data.get('tv_quantity', 0)
+    operators = data.get('operators', 0)
+    media = data.get('media', '❌ Без медиа-сопровождения')
+    media_cost = data.get('media_cost', 0)
+    price_per_hour = data.get('price_per_hour', PRICE_STANDARD)
+    equipment_total = data.get('equipment_total', 0)
+    tv_total = data.get('tv_total', 0)
+    operator_total = data.get('operator_total', 0)
+    total = data.get('subtotal', 0)
 
     user = message.from_user
 
@@ -540,42 +717,48 @@ async def rent_finish(message: types.Message, state: FSMContext):
         "quantity": quantity,
         "hours": hours,
         "tv": tv,
-        "promo": promo,
-        "discount": discount,
+        "tv_quantity": tv_qty,
+        "operators": operators,
+        "media": media,
+        "media_cost": media_cost,
+        "price_per_hour": price_per_hour,
         "equipment_cost": equipment_total,
+        "tv_cost": tv_total,
         "operator_cost": operator_total,
         "transport_cost": TRANSPORT_PRICE,
-        "tv_cost": tv_total,
         "total": total,
-        "name": data['name'],
-        "phone": data['phone'],
-        "address": data['address'],
-        "comments": data['comments'],
+        "name": data.get('name', '—'),
+        "phone": data.get('phone', '—'),
+        "address": data.get('address', '—'),
+        "comments": data.get('comments', '—'),
         "user_id": user.id,
         "username": user.username or "нет",
-        "has_deposit_photo": data.get('has_deposit_photo', False),
         "lang": lang,
+        "promo": None,
+        "discount": 0,
     }
 
     order_id = add_order(order)
 
+    bulk_note = " 🔥 (оптовая цена)" if quantity >= 5 else ""
     admin_text = (
-        f"🔥 <b>НОВАЯ ЗАЯВКА #{order_id}</b>\n\n"
-        f"🎮 Оборудование: {equipment} x{quantity}\n"
-        f"⏰ Часов: {hours}\n"
-        f"📺 ТВ со стойками: {'Да' if tv else 'Нет'}\n\n"
-        f"💰 <b>Расчёт:</b>\n"
-        f"   Шлемы: {equipment_total:,} тг\n"
-        f"   Операторы: {operator_total:,} тг\n"
-        f"   Транспорт: {TRANSPORT_PRICE:,} тг\n"
-        f"   ТВ: {tv_total:,} тг\n"
-        f"   Промокод: {promo or 'нет'} (-{discount}%)\n"
-        f"   ─────────────\n"
-        f"   Итого: <b>{total:,} тг</b>\n\n"
-        f"👤 {data['name']} | 📱 {data['phone']}\n"
-        f"📍 {data['address']}\n"
-        f"💬 {data['comments']}\n"
-        f"📸 Фото залога: {'Да ✅' if data.get('has_deposit_photo') else 'Нет ❌'}\n\n"
+        f"🔥 <b>НОВАЯ ЗАЯВКА #{order_id}</b>\n"
+        f"📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+        f"🔹 1. VR-оборудование:\n"
+        f"   {equipment} — {quantity} шт. × {hours} ч. × {price_per_hour:,} тг{bulk_note} = {equipment_total:,} тг\n"
+    )
+    if tv:
+        admin_text += f"🔹 2. Телевизоры:\n   {tv_qty} шт. × {hours} ч. × {TV_PRICE:,} тг = {tv_total:,} тг\n"
+    if operators > 0:
+        admin_text += f"🔹 3. Персонал:\n   {operators} чел. × {hours} ч. × {OPERATOR_PRICE:,} тг = {operator_total:,} тг\n"
+    admin_text += (
+        f"🔹 4. Медиа: {media} = {media_cost:,} тг\n"
+        f"🔹 5. Логистика: {TRANSPORT_PRICE:,} тг\n"
+        f"─────────────────\n"
+        f"💰 <b>ИТОГО: {total:,} тг</b>\n\n"
+        f"👤 {data.get('name', '—')} | 📱 {data.get('phone', '—')}\n"
+        f"📍 {data.get('address', '—')}\n"
+        f"💬 {data.get('comments', '—')}\n"
         f"Telegram: @{user.username or 'нет'} | ID: <code>{user.id}</code>"
     )
 
@@ -585,24 +768,17 @@ async def rent_finish(message: types.Message, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка отправки заявки: {e}")
 
-    if lang == "ru":
-        confirm_text = (
-            f"✅ <b>Заявка #{order_id} принята!</b>\n\n"
-            f"🎮 {equipment} x{quantity}\n"
-            f"⏰ {hours} час(ов)\n"
-            f"📺 ТВ: {'Да' if tv else 'Нет'}\n\n"
-            f"💰 <b>Итого: {total:,} тг</b>\n\n"
-            f"Менеджер свяжется с вами в течение часа 🚀"
-        )
-    else:
-        confirm_text = (
-            f"✅ <b>Өтінім #{order_id} қабылданды!</b>\n\n"
-            f"🎮 {equipment} x{quantity}\n"
-            f"⏰ {hours} сағат\n"
-            f"📺 ТВ: {'Иә' if tv else 'Жоқ'}\n\n"
-            f"💰 <b>Барлығы: {total:,} тг</b>\n\n"
-            f"Менеджер бір сағат ішінде хабарласады 🚀"
-        )
+    confirm_text = (
+        f"✅ <b>Заявка #{order_id} принята!</b>\n\n"
+        f"🎮 {equipment} × {quantity} шт. × {hours} ч.\n"
+        f"💰 <b>Итого: {total:,} тг</b>\n\n"
+        f"Менеджер свяжется с вами в течение часа 🚀"
+    ) if lang == "ru" else (
+        f"✅ <b>Өтінім #{order_id} қабылданды!</b>\n\n"
+        f"🎮 {equipment} × {quantity} дана × {hours} сағ.\n"
+        f"💰 <b>Барлығы: {total:,} тг</b>\n\n"
+        f"Менеджер бір сағат ішінде хабарласады 🚀"
+    )
 
     await message.answer(confirm_text, parse_mode="HTML", reply_markup=main_menu(lang))
     await state.clear()
@@ -722,7 +898,10 @@ async def export_excel(message: types.Message):
     ws = wb.active
     ws.title = "Заявки"
 
-    headers = ["#", "Дата", "Статус", "Оборудование", "Кол-во", "Часов", "ТВ", "Оператор", "Транспорт", "Промокод", "Скидка%", "Итого", "Имя", "Телефон", "Адрес", "Комментарий", "Telegram"]
+    headers = ["#", "Дата", "Статус", "Оборудование", "Шлемов", "Часов", "ТВ", "Кол-во ТВ",
+               "Операторов", "Медиа", "Цена/час", "Шлемы сумма", "ТВ сумма",
+               "Персонал", "Медиа сумма", "Транспорт", "Итого",
+               "Имя", "Телефон", "Адрес", "Комментарий", "Telegram"]
     header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True)
 
@@ -740,16 +919,21 @@ async def export_excel(message: types.Message):
         ws.cell(row=row, column=5, value=o.get("quantity", 1))
         ws.cell(row=row, column=6, value=o.get("hours"))
         ws.cell(row=row, column=7, value="Да" if o.get("tv") else "Нет")
-        ws.cell(row=row, column=8, value=o.get("operator_cost", 0))
-        ws.cell(row=row, column=9, value=o.get("transport_cost", 0))
-        ws.cell(row=row, column=10, value=o.get("promo") or "—")
-        ws.cell(row=row, column=11, value=o.get("discount", 0))
-        ws.cell(row=row, column=12, value=o.get("total", 0))
-        ws.cell(row=row, column=13, value=o.get("name"))
-        ws.cell(row=row, column=14, value=o.get("phone"))
-        ws.cell(row=row, column=15, value=o.get("address"))
-        ws.cell(row=row, column=16, value=o.get("comments"))
-        ws.cell(row=row, column=17, value=f"@{o.get('username', 'нет')}")
+        ws.cell(row=row, column=8, value=o.get("tv_quantity", 0))
+        ws.cell(row=row, column=9, value=o.get("operators", 0))
+        ws.cell(row=row, column=10, value=o.get("media", "—"))
+        ws.cell(row=row, column=11, value=o.get("price_per_hour", 0))
+        ws.cell(row=row, column=12, value=o.get("equipment_cost", 0))
+        ws.cell(row=row, column=13, value=o.get("tv_cost", 0))
+        ws.cell(row=row, column=14, value=o.get("operator_cost", 0))
+        ws.cell(row=row, column=15, value=o.get("media_cost", 0))
+        ws.cell(row=row, column=16, value=o.get("transport_cost", 0))
+        ws.cell(row=row, column=17, value=o.get("total", 0))
+        ws.cell(row=row, column=18, value=o.get("name"))
+        ws.cell(row=row, column=19, value=o.get("phone"))
+        ws.cell(row=row, column=20, value=o.get("address"))
+        ws.cell(row=row, column=21, value=o.get("comments"))
+        ws.cell(row=row, column=22, value=f"@{o.get('username', 'нет')}")
 
     for col in ws.columns:
         ws.column_dimensions[col[0].column_letter].width = 18
@@ -768,7 +952,6 @@ async def morning_report():
         if now.hour == 9 and now.minute == 0:
             orders = load_crm()
             today = now.strftime("%d.%m.%Y")
-            yesterday = orders  # все заявки за вчера
             new_count = len([o for o in orders if o["status"] == "🆕 Новая"])
             total_count = len(orders)
             revenue = sum(o.get("total", 0) for o in orders if o["status"] == "🏁 Закрыта")
@@ -793,9 +976,10 @@ def format_order(o: dict) -> str:
     return (
         f"📋 <b>Заявка #{o['id']}</b> | {o.get('status', '—')}\n"
         f"🕐 {o.get('created_at', '—')}\n\n"
-        f"🎮 {o.get('equipment')} x{o.get('quantity', 1)}\n"
-        f"⏰ Часов: {o.get('hours', '—')}\n"
-        f"📺 ТВ: {'Да' if o.get('tv') else 'Нет'}\n"
+        f"🎮 {o.get('equipment')} x{o.get('quantity', 1)} | {o.get('hours', '—')} ч.\n"
+        f"📺 ТВ: {'Да (' + str(o.get('tv_quantity', 1)) + ' шт.)' if o.get('tv') else 'Нет'}\n"
+        f"👨‍💼 Операторов: {o.get('operators', 0)}\n"
+        f"🎬 Медиа: {o.get('media', '—')}\n"
         f"💰 Итого: {o.get('total', 0):,} тг\n"
         f"👤 {o.get('name')} | 📱 {o.get('phone')}\n"
         f"📍 {o.get('address', '—')}\n"
