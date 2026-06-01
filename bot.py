@@ -39,7 +39,7 @@ TV_PRICE = 10500         # тг/час за ТВ
 
 # Медиа-пакеты (цена за мероприятие, от указанной суммы)
 MEDIA_PACKAGES = {
-    "🎬 Кинокамера Sony FX30 Cinema Line — беззеркальная, 8 бит, Log-S форматы (съёмка + монтаж Reels)": 20000,
+    "🎬 Кинокамера Sony FX30 Cinema Line форматы (съёмка + монтаж Reels)": 20000,
     "📱 Мобилография (iPhone Pro Max)": 20000,
     "🎥 Полный пакет (кинокамера + мобилография)": 50000,
     "❌ Без медиа-сопровождения": 0,
@@ -164,7 +164,7 @@ T = {
             "📺 Телевизор (Full HD/4K) — 10 500 тг/час\n"
             "🚗 Логистика (доставка + монтаж) — 25 000 тг/выезд\n\n"
             "<b>🎬 Медиа-сопровождение (за мероприятие):</b>\n"
-            "   🎬 Кинокамера Sony FX30 Cinema Line — беззеркальная, 8 бит, Log-S (съёмка + монтаж Reels) — от 20 000 тг\n"
+            "   🎬 Кинокамера Sony FX30 Cinema Line (съёмка + монтаж Reels) — от 20 000 тг\n"
             "   📱 Мобилография (iPhone Pro Max) — от 20 000 тг\n"
             "   🎥 Полный пакет (оба варианта) — от 35 000 тг\n\n"
             "💳 Оплата: наличными или переводом"
@@ -178,7 +178,7 @@ T = {
             "📺 Теледидар (Full HD/4K) — 10 500 тг/сағ\n"
             "🚗 Логистика (жеткізу + монтаж) — 25 000 тг/шығу\n\n"
             "<b>🎬 Медиа-сүйемелдеу (іс-шараға):</b>\n"
-            "   🎬 Кинокамера Sony FX30 Cinema Line — беззеркальная, 8 бит, Log-S (түсіру + монтаж) — 20 000 тг-дан\n"
+            "   🎬 Кинокамера Sony FX30 Cinema Line (түсіру + монтаж) — 20 000 тг-дан\n"
             "   📱 Мобилография (iPhone Pro Max) — 20 000 тг-дан\n"
             "   🎥 Толық пакет (екі нұсқа) — 35 000 тг-дан\n\n"
             "💳 Төлем: қолма-қол немесе аударым"
@@ -226,6 +226,13 @@ class RentForm(StatesGroup):
 class ConsultForm(StatesGroup):
     question = State()
 
+class CameraForm(StatesGroup):
+    hours = State()
+    name = State()
+    phone = State()
+    address = State()
+    comments = State()
+
 # ================== КЛАВИАТУРЫ ==================
 def lang_menu():
     keyboard = [
@@ -242,6 +249,7 @@ def main_menu(lang="ru"):
             [types.KeyboardButton(text="📖 Как арендовать")],
             [types.KeyboardButton(text="🧠 Консультация")],
             [types.KeyboardButton(text="🚀 Оформить аренду")],
+            [types.KeyboardButton(text="🎬 Аренда кинокамеры")],
             [types.KeyboardButton(text="🔄 Повторная аренда")],
             [types.KeyboardButton(text="🌐 Сменить язык")]
         ]
@@ -252,6 +260,7 @@ def main_menu(lang="ru"):
             [types.KeyboardButton(text="📖 Қалай жалдауға")],
             [types.KeyboardButton(text="🧠 Кеңес")],
             [types.KeyboardButton(text="🚀 Жалдауды рәсімдеу")],
+            [types.KeyboardButton(text="🎬 Кинокамера жалдау")],
             [types.KeyboardButton(text="🔄 Қайта жалдау")],
             [types.KeyboardButton(text="🌐 Тілді өзгерту")]
         ]
@@ -776,6 +785,161 @@ async def rent_finish(message: types.Message, state: FSMContext):
     ) if lang == "ru" else (
         f"✅ <b>Өтінім #{order_id} қабылданды!</b>\n\n"
         f"🎮 {equipment} × {quantity} дана × {hours} сағ.\n"
+        f"💰 <b>Барлығы: {total:,} тг</b>\n\n"
+        f"Менеджер бір сағат ішінде хабарласады 🚀"
+    )
+
+    await message.answer(confirm_text, parse_mode="HTML", reply_markup=main_menu(lang))
+    await state.clear()
+
+
+# ================== АРЕНДА КИНОКАМЕРЫ ==================
+CAMERA_PRICE = 20000  # тг/час за кинокамеру
+
+@dp.message(F.text.in_(["🎬 Аренда кинокамеры", "🎬 Кинокамера жалдау"]))
+async def camera_start(message: types.Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    if not is_working_hours():
+        await message.answer(T["off_hours"][lang], parse_mode="HTML")
+        return
+    msg = (
+        "🎬 <b>Аренда кинокамеры Sony FX30 Cinema Line</b>\n\n"
+        "📸 Профессиональная съёмка вашего мероприятия\n\n"
+        "<b>Шаг 1/4</b> — На сколько часов нужна кинокамера?\n"
+        f"💰 от {CAMERA_PRICE:,} тг/час\n\n"
+        "<i>Введите число часов (мин. 3)</i>"
+    ) if lang == "ru" else (
+        "🎬 <b>Sony FX30 Cinema Line кинокамерасын жалдау</b>\n\n"
+        "📸 Іс-шараңызды кәсіби түсіру\n\n"
+        "<b>Қадам 1/4</b> — Кинокамера қанша сағатқа керек?\n"
+        f"💰 {CAMERA_PRICE:,} тг/сағ-дан\n\n"
+        "<i>Сағат санын енгізіңіз (мин. 3)</i>"
+    )
+    await message.answer(msg, parse_mode="HTML", reply_markup=cancel_menu())
+    await state.set_state(CameraForm.hours)
+
+@dp.message(CameraForm.hours)
+async def camera_hours(message: types.Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    if not message.text.isdigit() or int(message.text) <= 0:
+        await message.answer("⚠️ Введите количество часов числом" if lang == "ru" else "⚠️ Сағат санын енгізіңіз")
+        return
+    hours = int(message.text)
+    if hours < MIN_HOURS:
+        await message.answer(f"⚠️ Минимальный заказ — {MIN_HOURS} часа." if lang == "ru" else f"⚠️ Ең аз тапсырыс — {MIN_HOURS} сағат.")
+        return
+    camera_total = CAMERA_PRICE * hours
+    total = camera_total + TRANSPORT_PRICE
+    await state.update_data(hours=hours, camera_total=camera_total, total=total)
+
+    check_text = (
+        f"🧾 <b>РАСЧЁТ ЗАКАЗА:</b>\n\n"
+        f"🎬 Sony FX30 Cinema Line — {hours} ч. = <b>{camera_total:,} тг</b>\n"
+        f"🚗 Логистика (доставка + монтаж) — <b>{TRANSPORT_PRICE:,} тг</b>\n"
+        f"──────────────────────\n"
+        f"💰 <b>ИТОГО: {total:,} тг</b>\n\n"
+        f"👇 Если всё верно, нажмите <b>«Оформить заявку»</b>"
+    ) if lang == "ru" else (
+        f"🧾 <b>ТАПСЫРЫС ЕСЕБІ:</b>\n\n"
+        f"🎬 Sony FX30 Cinema Line — {hours} сағ. = <b>{camera_total:,} тг</b>\n"
+        f"🚗 Логистика — <b>{TRANSPORT_PRICE:,} тг</b>\n"
+        f"──────────────────────\n"
+        f"💰 <b>БАРЛЫҒЫ: {total:,} тг</b>\n\n"
+        f"👇 Барлығы дұрыс болса, <b>«Өтінімді рәсімдеу»</b> батырмасын басыңыз"
+    )
+    await message.answer(check_text, parse_mode="HTML", reply_markup=confirm_order_menu())
+    await state.set_state(CameraForm.name)
+
+@dp.message(CameraForm.name)
+async def camera_name(message: types.Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    if message.text == "✅ Оформить заявку":
+        msg = "👤 Введите ваше имя:" if lang == "ru" else "👤 Атыңызды енгізіңіз:"
+        await message.answer(msg, reply_markup=cancel_menu())
+        await state.update_data(confirmed=True)
+        return
+    data = await state.get_data()
+    if not data.get("confirmed"):
+        return
+    await state.update_data(name=message.text)
+    msg = "📱 Введите номер телефона:" if lang == "ru" else "📱 Телефон нөміріңізді енгізіңіз:"
+    await message.answer(msg, reply_markup=cancel_menu())
+    await state.set_state(CameraForm.phone)
+
+@dp.message(CameraForm.phone)
+async def camera_phone(message: types.Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    await state.update_data(phone=message.text)
+    msg = "📍 Укажите адрес съёмки (Алматы):" if lang == "ru" else "📍 Түсіру мекенжайын көрсетіңіз (Алматы):"
+    await message.answer(msg, reply_markup=cancel_menu())
+    await state.set_state(CameraForm.address)
+
+@dp.message(CameraForm.address)
+async def camera_address(message: types.Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    await state.update_data(address=message.text)
+    msg = "💬 Дополнительные пожелания? (или напишите «нет»)" if lang == "ru" else "💬 Қосымша тілектер? (немесе «жоқ» деп жазыңыз)"
+    await message.answer(msg, reply_markup=cancel_menu())
+    await state.set_state(CameraForm.comments)
+
+@dp.message(CameraForm.comments)
+async def camera_finish(message: types.Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    await state.update_data(comments=message.text)
+    data = await state.get_data()
+
+    hours = data["hours"]
+    camera_total = data["camera_total"]
+    total = data["total"]
+    user = message.from_user
+
+    order = {
+        "type": "camera",
+        "equipment": "Sony FX30 Cinema Line",
+        "hours": hours,
+        "camera_cost": camera_total,
+        "transport_cost": TRANSPORT_PRICE,
+        "total": total,
+        "name": data.get("name", "—"),
+        "phone": data.get("phone", "—"),
+        "address": data.get("address", "—"),
+        "comments": data.get("comments", "—"),
+        "user_id": user.id,
+        "username": user.username or "нет",
+        "lang": lang,
+        "promo": None,
+        "discount": 0,
+    }
+
+    order_id = add_order(order)
+
+    admin_text = (
+        f"🎬 <b>ЗАЯВКА НА КИНОКАМЕРУ #{order_id}</b>\n"
+        f"📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+        f"📷 Sony FX30 Cinema Line — {hours} ч. = {camera_total:,} тг\n"
+        f"🚗 Логистика: {TRANSPORT_PRICE:,} тг\n"
+        f"─────────────────\n"
+        f"💰 <b>ИТОГО: {total:,} тг</b>\n\n"
+        f"👤 {data.get('name', '—')} | 📱 {data.get('phone', '—')}\n"
+        f"📍 {data.get('address', '—')}\n"
+        f"💬 {data.get('comments', '—')}\n"
+        f"Telegram: @{user.username or 'нет'} | ID: <code>{user.id}</code>"
+    )
+
+    try:
+        for admin_id in ADMIN_IDS:
+            await bot.send_message(admin_id, admin_text, parse_mode="HTML", reply_markup=status_menu(order_id))
+    except Exception as e:
+        logger.error(f"Ошибка отправки заявки кинокамеры: {e}")
+
+    confirm_text = (
+        f"✅ <b>Заявка #{order_id} принята!</b>\n\n"
+        f"🎬 Sony FX30 Cinema Line — {hours} ч.\n"
+        f"💰 <b>Итого: {total:,} тг</b>\n\n"
+        f"Менеджер свяжется с вами в течение часа 🚀"
+    ) if lang == "ru" else (
+        f"✅ <b>Өтінім #{order_id} қабылданды!</b>\n\n"
+        f"🎬 Sony FX30 Cinema Line — {hours} сағ.\n"
         f"💰 <b>Барлығы: {total:,} тг</b>\n\n"
         f"Менеджер бір сағат ішінде хабарласады 🚀"
     )
